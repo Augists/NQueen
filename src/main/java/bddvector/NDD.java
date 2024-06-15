@@ -1,10 +1,8 @@
 package bddvector;
 
-import java.security.KeyStore.Entry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,19 +28,31 @@ public class NDD {
 
     public static void SetFieldNum(int num) {
         fieldNum = num;
+
+        // lazy init for NDD True and False
+        for (ArrayList<Integer> vector : NDDTrue.vectors) {
+            for (int i = 0; i < fieldNum; i++) {
+                vector.add(1);
+            }
+        }
+        // for (ArrayList<Integer> vector : NDDFalse.vectors) {
+        // for (int i = 1; i < fieldNum; i++) {
+        // vector.add(1);
+        // }
+        // vector.add(0);
+        // }
     }
 
     public static void SetUpperBound(int[] upper) {
-        System.out.println("===========set upper bound============");
-        System.out.println("upper bound");
-        for (int i = 0; i < upper.length; i++) {
-            System.out.print(upper[i] + " ");
-        }
-        System.out.println();
+        // System.out.println("===========set upper bound============");
+        // System.out.println("upper bound");
+        // for (int i = 0; i < upper.length; i++) {
+        //     System.out.print(upper[i] + " ");
+        // }
+        // System.out.println();
 
         upperBound = upper;
         int varNum = 0;
-        // if (NDDTCWrapper.useToBDD) {
         boolean useToBDD = true;
         if (useToBDD) {
             varNum = upper[fieldNum - 1] + 1;
@@ -53,18 +63,18 @@ public class NDD {
                     varNum = upper[i] - upper[i - 1];
             }
         }
-        System.out.println("varNum " + varNum);
+        // System.out.println("varNum " + varNum);
         div = new double[fieldNum];
         div[0] = Math.pow(2.0, varNum - upper[0] - 1);
         for (int i = 1; i < fieldNum; i++) {
             div[i] = Math.pow(2.0, varNum - (upper[i] - upper[i - 1]));
         }
 
-        System.out.println("div");
-        for (int i = 0; i < div.length; i++) {
-            System.out.print(div[i] + " ");
-        }
-        System.out.println();
+        // System.out.println("div");
+        // for (int i = 0; i < div.length; i++) {
+        //     System.out.print(div[i] + " ");
+        // }
+        // System.out.println();
     }
 
     public NDD() {
@@ -74,13 +84,13 @@ public class NDD {
     public NDD(boolean flag) {
         // field = fieldNum + 1;
         vectors = new HashSet<>();
-        ArrayList<Integer> BDDarray;
+        ArrayList<Integer> vector;
         if (flag) {
-            BDDarray = new ArrayList<Integer>();
+            vector = new ArrayList<Integer>();
         } else {
-            BDDarray = new ArrayList<Integer>();
+            vector = new ArrayList<Integer>();
         }
-        vectors.add(BDDarray);
+        vectors.add(vector);
     }
 
     public NDD(Set<ArrayList<Integer>> ret) {
@@ -515,6 +525,11 @@ public class NDD {
         return result;
     }
 
+    public static int toZero(NDD n) {
+        int root = NDD.toBDD(n);
+        return bdd.toZero(root);
+    }
+
     public static NDD encodeAtMostKFailureVarsSorted(BDD bdd, int[] vars, int startField, int endField, int k) {
         return encodeAtMostKFailureVarsSortedRec(bdd, vars, endField, startField, k);
     }
@@ -575,8 +590,6 @@ public class NDD {
         return bdd.mk(bdd.getVar(vars[endVar - currVar]), low, high);
     }
 
-    public static boolean satCountTest = false;
-
     public static double satCount(NDD curr) {
         return satCountRec(curr);
     }
@@ -596,24 +609,8 @@ public class NDD {
         ArrayList<Double> retList = new ArrayList<>();
         for (ArrayList<Integer> vector : curr.vectors) {
             double subRet = 1.0;
-            if (satCountTest)
-                System.out.println("new vector");
             for (int i = fieldNum - 1; i >= 0; i--) {
-                if (satCountTest) {
-                    System.out.println("vector i " + vector.get(i));
-                    // if (vector.get(i) == 132600 || vector.get(i) == 151472 || vector.get(i) ==
-                    // 40237)
-                    // bdd.printDot("/data/augists/NQueen/vec_"+vector.get(i), vector.get(i));
-                }
-                double sat_count = bdd.satCount(vector.get(i));
-                if (satCountTest)
-                    System.out.println("sat count " + sat_count);
-                subRet = subRet * sat_count;
-                if (satCountTest)
-                    System.out.println("subRet " + subRet);
-                subRet = subRet / div[i];
-                if (satCountTest)
-                    System.out.println("after div " + subRet);
+                subRet = subRet * bdd.satCount(vector.get(i)) / div[i];
             }
             // System.out.println("subRet: " + subRet);
             retList.add(subRet);
@@ -624,42 +621,32 @@ public class NDD {
         return ret;
     }
 
-    // public static void nodeCount(NDD node) {
-    // HashSet<NDD> NDDSet = new HashSet<NDD>();
-    // HashSet<Integer> BDDRootSet = new HashSet<Integer>();
-    // HashSet<Integer> BDDSet = new HashSet<Integer>();
-    // detectNDD(node, NDDSet, BDDRootSet);
-    // for (int BDDRoot : BDDRootSet) {
-    // detectBDD(BDDRoot, BDDSet);
-    // }
-    // System.out.println("NDD node:" + NDDSet.size() + " BDD node:" +
-    // BDDSet.size());
-    // }
+    public static void nodeCount(NDD node) {
+        HashSet<Integer> BDDRootSet = new HashSet<Integer>();
+        HashSet<Integer> BDDSet = new HashSet<Integer>();
+        for (ArrayList<Integer> vector : node.vectors) {
+            for (int i = 0; i < vector.size(); i++) {
+                BDDRootSet.add(vector.get(i));
+            }
+        }
+        for (int BDDRoot : BDDRootSet) {
+            detectBDD(BDDRoot, BDDSet);
+        }
+        System.out.println("NDD node:" + node.vectors.size() + " BDD node:" +
+                BDDSet.size());
+    }
 
-    // private static void detectNDD(NDD node, HashSet<NDD> NDDset, HashSet<Integer>
-    // BDDRootSet) {
-    // if (node.is_True() || node.is_False()) {
-    // return;
-    // } else {
-    // NDDset.add(node);
-    // for (Map.Entry<NDD, Integer> entry : node.edges.entrySet()) {
-    // BDDRootSet.add(entry.getValue());
-    // detectNDD(entry.getKey(), NDDset, BDDRootSet);
-    // }
-    // }
-    // }
-
-    // private static void detectBDD(int node, HashSet<Integer> BDDSet) {
-    // if (node == 1 || node == 0)
-    // return;
-    // else {
-    // if (!BDDSet.contains(node)) {
-    // BDDSet.add(node);
-    // detectBDD(bdd.getHigh(node), BDDSet);
-    // detectBDD(bdd.getLow(node), BDDSet);
-    // }
-    // }
-    // }
+    private static void detectBDD(int node, HashSet<Integer> BDDSet) {
+        if (node == 1 || node == 0)
+            return;
+        else {
+            if (!BDDSet.contains(node)) {
+                BDDSet.add(node);
+                detectBDD(bdd.getHigh(node), BDDSet);
+                detectBDD(bdd.getLow(node), BDDSet);
+            }
+        }
+    }
 
     public static void showStatestic() {
         System.out.println("And:" + ANDTime / 1000000000.0);
@@ -671,6 +658,6 @@ public class NDD {
 
     // public static void showMemoryUsage() {
     // System.out.println("NDD memory usage:" +
-    // (ObjectSizeCalculator.getObjectSize(table) / 8 / 1024 / 1024) + "MB");
+    // (ObjectSizeCalculator.getObjectSize(bdd) / 8 / 1024 / 1024) + "MB");
     // }
 }

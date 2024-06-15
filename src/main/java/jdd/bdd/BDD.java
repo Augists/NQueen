@@ -27,6 +27,13 @@ package jdd.bdd;
 import jdd.util.*;
 import jdd.util.math.*;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
+
 // for debugging only!
 import jdd.bdd.debug.IdealCache;
 import jdd.bdd.debug.VerifiedCache;
@@ -1119,6 +1126,81 @@ public class BDD extends NodeTable {
 		replace_cache.insert(hash, bdd, perm_id, l );
 		return l;
 	}
+	    public int toZero(int bdd) {
+        Set<Integer> vi = new HashSet<>();
+        Map<Integer, Integer> dis = new HashMap();
+        dis.put(bdd, 0);
+        return this.toZero_rec(bdd, vi, dis, 0);
+    }
+
+    private int toZero_rec(int bdd, Set<Integer> vi, Map<Integer, Integer> dis, int d) {
+        if (bdd == 0) {
+            return d;
+        } else {
+            vi.add(bdd);
+            int low = this.getLow(bdd);
+            int high = this.getHigh(bdd);
+            if (!dis.containsKey(low) || (Integer)dis.get(low) > d + 1) {
+                dis.put(low, d + 1);
+            }
+
+            if (!dis.containsKey(high) || (Integer)dis.get(high) > d) {
+                dis.put(high, d);
+            }
+
+            int nxtV = 0;
+            int nxtD = 2147483647;
+            Iterator var9 = dis.entrySet().iterator();
+
+            while(var9.hasNext()) {
+                Entry<Integer, Integer> entry = (Entry)var9.next();
+                if (!vi.contains(entry.getKey()) && (Integer)entry.getValue() < nxtD) {
+                    nxtD = (Integer)entry.getValue();
+                    nxtV = (Integer)entry.getKey();
+                }
+            }
+
+            return this.toZero_rec(nxtV, vi, dis, nxtD);
+        }
+    }
+	
+    public int toOne(int bdd) {
+        Set<Integer> vi = new HashSet<>();
+        Map<Integer, Integer> dis = new HashMap();
+        dis.put(bdd, 0);
+        return this.toOne_rec(bdd, vi, dis, 0);
+    }
+
+    private int toOne_rec(int bdd, Set<Integer> vi, Map<Integer, Integer> dis, int d) {
+        if (bdd == 1) {
+            return d;
+        } else {
+            vi.add(bdd);
+            int low = this.getLow(bdd);
+            int high = this.getHigh(bdd);
+            if (!dis.containsKey(low) || (Integer)dis.get(low) > d + 1) {
+                dis.put(low, d + 1);
+            }
+
+            if (!dis.containsKey(high) || (Integer)dis.get(high) > d) {
+                dis.put(high, d);
+            }
+
+            int nxtV = 0;
+            int nxtD = 2147483647;
+            Iterator var9 = dis.entrySet().iterator();
+
+            while(var9.hasNext()) {
+                Entry<Integer, Integer> entry = (Entry)var9.next();
+                if (!vi.contains(entry.getKey()) && (Integer)entry.getValue() < nxtD) {
+                    nxtD = (Integer)entry.getValue();
+                    nxtV = (Integer)entry.getKey();
+                }
+            }
+
+            return this.toOne_rec(nxtV, vi, dis, nxtD);
+        }
+    }
 
 	/** mk but with possible bad order between var and l or h. uses the variable perm_var */
 	private final int mkAndOrder(int l, int h) {
