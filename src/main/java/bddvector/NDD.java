@@ -72,10 +72,12 @@ public class NDD {
     public static void SetUpperBound(int[] upper) {
         upperBound = upper;
 
+        varNumTotal = upper[upper.length - 1] + 1;
+
         varNumList = new int[fieldNum];
         varNumList[0] = upper[0] + 1;
         for (int i = 1; i < fieldNum; i++) {
-            varNumList[i] = upper[i] - upper[i - 1] + 1;
+            varNumList[i] = upper[i] - upper[i - 1];
         }
 
         // int length = varNumList[0];
