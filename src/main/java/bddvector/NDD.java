@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+// import bdd.NDDTCWrapper;
 import jdd.bdd.BDD;
 
 public class NDD {
@@ -30,7 +31,7 @@ public class NDD {
     public Set<ArrayList<Integer>> vectors;
 
     public static int[] createVar(int maxNum) {
-        maxVarsLength = maxNum; // = varNumTotal if not reuse
+        maxVarsLength = maxNum;
 
         // bdd reuse so use max field num
         vars = new int[maxNum];
@@ -122,6 +123,8 @@ public class NDD {
             ArrayList<Integer> newVector = new ArrayList<>(vector);
             this.vectors.add(newVector);
         }
+        // ref all vector when using deep copy of NDD vectors
+        // ref(this);
     }
 
     public boolean equals(NDD obj) {
@@ -136,13 +139,17 @@ public class NDD {
             return true;
         }
         for (ArrayList<Integer> vector : vectors) {
-            for (int i = 0; i < vector.size(); i++) {
+            int i = 0;
+            for (; i < vector.size(); i++) {
                 if (vector.get(i) != 1) {
-                    return false;
+                    break;
                 }
             }
+            if (i == fieldNum) {
+                return true;
+            }
         }
-        return true;
+        return false;
     }
 
     public boolean is_False() {
@@ -205,11 +212,11 @@ public class NDD {
         if (a.is_False() || b.is_False())
             return NDDFalse;
         if (a.is_True())
-            return new NDD(b);
+            return ref(new NDD(b));
         if (b.is_True())
-            return new NDD(a);
+            return ref(new NDD(a));
         if (a.equals(b))
-            return new NDD(a);
+            return ref(new NDD(a));
 
         NDD ret = new NDD();
         for (ArrayList<Integer> vectorA : a.vectors) {
@@ -218,21 +225,22 @@ public class NDD {
                 // remove vector with any idx pointed to bdd false
                 boolean flag = false;
                 for (int i = 0; i < vectorA.size(); i++) {
-                    int idx = bdd.ref(bdd.and(vectorA.get(i), vectorB.get(i)));
+                    int idx = bdd.and(vectorA.get(i), vectorB.get(i));
                     if (idx == 0) {
                         flag = true;
                     }
                     vectorC.add(idx);
                 }
-                if (flag) {
+                if (!flag) {
+                    // ref the whole vector if will be added
                     for (int i = 0; i < vectorC.size(); i++) {
-                        bdd.deref(vectorC.get(i));
+                        bdd.ref(vectorC.get(i));
                     }
-                } else {
                     ret.vectors.add(vectorC);
                 }
             }
         }
+        // already ref in process
         return ret;
     }
 
@@ -244,16 +252,16 @@ public class NDD {
         if (a.is_True() || b.is_True())
             return NDDTrue;
         if (a.is_False())
-            return new NDD(b);
+            return ref(new NDD(b));
         if (b.is_False())
-            return new NDD(a);
+            return ref(new NDD(a));
         if (a.equals(b))
-            return new NDD(a);
+            return ref(new NDD(a));
 
         NDD ret = new NDD();
         ret.vectors.addAll(a.vectors);
         ret.vectors.addAll(b.vectors);
-        return ret;
+        return ref(ret);
     }
 
     public static NDD Not(NDD a) {
@@ -263,8 +271,14 @@ public class NDD {
     }
 
     private static NDD NotRecBackBDD(NDD a) {
-        int idx = toBDD(a);
-        return toNDD(bdd.not(idx));
+        ref(a);
+        int bddidx = bdd.ref(toBDD(a));
+        int idx = bdd.ref(bdd.not(bddidx));
+        NDD ret = toNDD(idx);
+        bdd.deref(bddidx);
+        bdd.deref(idx);
+        deref(a);
+        return ref(ret);
     }
 
     private static NDD NotRecDirectly(NDD a) {
@@ -310,7 +324,7 @@ public class NDD {
             ret.clear();
             ret = retNext;
         }
-        return new NDD(ret);
+        return ref(new NDD(ret));
     }
 
     private static HashSet<ArrayList<Integer>> NotRecSingleVector(ArrayList<Integer> vector) {
@@ -366,11 +380,11 @@ public class NDD {
             NDD.deref(tmp);
         }
 
-        return ret;
+        return ref(ret);
     }
 
     public static NDD Diff(NDD a, NDD b) {
-        return AND(a, Not(b));
+        return ref(AND(a, Not(b)));
     }
 
     public static NDD Exist(NDD a, int field) {
@@ -385,7 +399,7 @@ public class NDD {
         for (ArrayList<Integer> vector : ret.vectors) {
             vector.set(field, 1);
         }
-        return ret;
+        return ref(ret);
         // for (ArrayList<Integer> vector : a.vectors) {
         // Set<ArrayList<Integer>> vectorSet = new HashSet<>();
         // for (int i = 0; i < field; i++) {
@@ -457,13 +471,18 @@ public class NDD {
                 lastIdx = bdd.and(idx, lastIdx);
                 bdd.ref(lastIdx);
                 bdd.deref(temp);
+                bdd.deref(idx);
             }
             bdds.add(lastIdx);
         }
 
         int ret = 0;
         for (int i = 0; i < bdds.size(); i++) {
-            ret = bdd.or(ret, bdds.get(i));
+            int temp = ret;
+            int idx = bdds.get(i);
+            ret = bdd.ref(bdd.or(ret, idx));
+            bdd.deref(idx);
+            bdd.deref(temp);
         }
         return ret;
     }
@@ -493,18 +512,23 @@ public class NDD {
                 int[] to = Arrays.copyOfRange(otherVars, upperBound[i] + 1 - length, upperBound[i] + 1);
 
                 jdd.bdd.Permutation perm = bdd.createPermutation(from, to);
-                idx = bdd.replace(idx, perm);
+                idx = bdd.ref(bdd.replace(idx, perm));
 
                 int temp = lastIdx;
                 lastIdx = bdd.ref(bdd.and(idx, lastIdx));
                 bdd.deref(temp);
+                bdd.deref(idx); // deref?
             }
             bdds.add(lastIdx);
         }
 
         int ret = 0;
         for (int i = 0; i < bdds.size(); i++) {
-            ret = bdd.or(ret, bdds.get(i));
+            int temp = ret;
+            int idx = bdds.get(i);
+            ret = bdd.ref(bdd.or(ret, idx));
+            bdd.deref(idx);
+            bdd.deref(temp);
         }
         return ret;
     }
@@ -546,7 +570,12 @@ public class NDD {
                     int[] to = Arrays.copyOfRange(vars, 0, length);
 
                     jdd.bdd.Permutation perm = bdd.createPermutation(from, to);
-                    int idx = bdd.ref(bdd.replace(vector.get(field), perm));
+                    int idx = 0;
+                    try {
+                        idx = bdd.ref(bdd.replace(vector.get(field), perm));
+                    } catch (Exception e) {
+                        // deal with var -1 but cannot reproduce at every time
+                    }
                     bdd.deref(vector.get(field));
 
                     vector.set(field, idx);
@@ -554,7 +583,7 @@ public class NDD {
             }
         }
 
-        return new NDD(vectors);
+        return NDD.ref(new NDD(vectors));
     }
 
     private static void toBDDvectorDFS(Set<ArrayList<Integer>> vectors,
@@ -712,7 +741,13 @@ public class NDD {
     }
 
     public static int toZero(NDD n) {
-        return bdd.toZero(NDD.toBDD(n));
+        ref(n);
+        int idx = bdd.ref(toBDD(n));
+        int ret = bdd.toZero(idx);
+        bdd.deref(idx);
+        deref(n);
+        return ret;
+
     }
 
     public static NDD encodeAtMostKFailureVarsSorted(BDD bdd, int[] vars, int startField, int endField, int k) {
@@ -779,9 +814,12 @@ public class NDD {
     public static boolean satCountTest = false;
 
     public static double satCount(NDD curr) {
+        int idx = bdd.ref(toBDD(curr));
+        double ret = bdd.satCount(idx);
         if (reuse)
-            return bdd.satCount(NDD.toBDD(curr)) / Math.pow(2.0, maxVarsLength);
-        return bdd.satCount(NDD.toBDD(curr));
+            ret = ret / Math.pow(2.0, maxVarsLength);
+        bdd.deref(idx);
+        return ret;
         // return satCountRec(curr);
     }
 
