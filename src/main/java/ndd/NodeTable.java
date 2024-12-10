@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import javafx.util.*;
-
 public class NodeTable {
     public HashMap<HashMap<NDD, Integer>, NDD> NDDs;
     public HashMap<NDD, Integer> refCount;
