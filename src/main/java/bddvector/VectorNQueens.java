@@ -1,14 +1,17 @@
-package ndd;
+package bddvector;
+
+import java.util.ArrayList;
 
 import jdd.bdd.BDD;
 
-public class NDDQueens {
+public class VectorNQueens {
 	public int field_num;
 	public int[] upperBound;
 	public double[] div;
 	public int[] bdds, nbdds;
 	public int N;
-	public NDD queen;
+	public BDDVector queen;
+	public int bddqueen;
 	public long time;
 	public BDD bdd;
 
@@ -48,18 +51,18 @@ public class NDDQueens {
 		return ret;
 	}
 
-	public NDDQueens(int N, int F) {
-		bdd = new BDD(1 + Math.max(1000, (int) (Math.pow(4.4, N - 6)) * 1000), 10000);
+	public VectorNQueens(int N, int F) {
+		bdd = new BDD(1 + Math.max(100000, (int) (Math.pow(4.4, N - 6)) * 1000), 10000);
 		this.N = N;
 		this.field_num = F;
-		NDD.bdd = bdd;
+		BDDVector.bdd = bdd;
 		time = System.currentTimeMillis();
 
 		upperBound = boundPolicy(N, F);
 		div = calculateDiv(N, F);
 
-		NDD.SetFieldNum(F);
-		NDD.SetUpperBound(upperBound);
+		BDDVector.SetFieldNum(F);
+		BDDVector.SetUpperBound(upperBound);
 
 		// declare var line by line
 		int all = N * N;
@@ -86,23 +89,70 @@ public class NDDQueens {
 			}
 		}
 
-		queen = NDD.NDDTrue;
+		// queen = NDD.NDDTrue;
+		queen = new BDDVector();
+		ArrayList<Integer> vec = new ArrayList<>();
+		for (int i = 0; i < field_num; i++)
+			vec.add(1);
+		queen.vectors.add(vec);
+
+		//
+		// bddqueen = 1;
 
 		for (int i = 0; i < N; i++) {
-			NDD predNDD = NDD.toNDD(orBatch[i]);
-			NDD old = queen;
-			queen = NDD.table.ref(NDD.AND(queen, predNDD));
-			NDD.table.deref(old);
-			NDD.table.testAndDelete(predNDD);
+			// System.out.println("orBatch " + i + " " + orBatch[i]);
+
+			BDDVector predNDD = BDDVector.toBDDVector(orBatch[i]);
+
+			// int back = NDD.toBDD(predNDD);
+			// int pre = orBatch[i];
+			// if (bdd.getVar(back) != bdd.getVar(pre)) {
+			// System.out.println("not equal " + back + " " + pre);
+			// }
+			// bdd.printDot("/data/augists/NQueen/pre"+i, pre);
+			// bdd.printDot("/data/augists/NQueen/back"+i, back);
+
+			// System.out.println("bdd vector " + predNDD.vectors);
+
+			queen = BDDVector.AND(queen, predNDD);
+
+			//
+			// int old = bddqueen;
+			// bddqueen = bdd.ref(bdd.and(bddqueen, orBatch[i]));
+			// bdd.deref(old);
+
+			// System.out.println("queen" + queen.vectors);
+			// bdd.printDot("/data/augists/NQueen/bddqueen_"+bddqueen, bddqueen);
 		}
 
 		for (int i = 0; i < N; i++) {
 			for (int j = 0; j < N; j++) {
-				NDD predNDD = NDD.toNDD(impBatch[i][j]);
-				NDD old = queen;
-				queen = NDD.table.ref(NDD.AND(queen, predNDD));
-				NDD.table.deref(old);
-				NDD.table.testAndDelete(predNDD);
+				BDDVector predNDD = BDDVector.toBDDVector(impBatch[i][j]);
+
+				// int back = NDD.toBDD(predNDD);
+				// int pre = impBatch[i][j];
+				// if (bdd.getVar(back) != bdd.getVar(pre)) {
+				// System.out.println("not equal " + back + " " + pre);
+				// }
+				// bdd.printDot("/data/augists/NQueen/pre_"+i+"_"+j, pre);
+				// bdd.printDot("/data/augists/NQueen/back_"+i+"_"+j, back);
+
+				// System.out.println("i j bdd vector " + i + "_" + j + "_" + predNDD.vectors);
+
+				queen = BDDVector.AND(queen, predNDD);
+				
+				//
+				// int old = bddqueen;
+				// bddqueen = bdd.ref(bdd.and(bddqueen, impBatch[i][j]));
+				// bdd.deref(old);
+
+				System.out.println("i j queen vectors " + queen.vectors.size());
+				// System.out.println(i+"_"+j+"_"+"sat count: " + NDD.satCount(queen));
+
+				// System.out.println("ndd queen: " + NDD.toBDD(queen) + " bdd queen: " + bddqueen);
+
+				// bdd.printDot("/data/augists/NQueen/bddqueen_"+i+"_"+j+"_"+bddqueen, bddqueen);
+				// System.out.println("bdd queen sat count: " + bdd.satCount(bddqueen));
 			}
 		}
 
@@ -164,9 +214,11 @@ public class NDDQueens {
 	}
 
 	public static void main(String[] args) {
-		NDDQueens q;
-		q = new NDDQueens(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
+		VectorNQueens q;
+		q = new VectorNQueens(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
+		// System.out.println(
+		// 		"N:" + q.N + " Field:" + q.field_num + " Time:" + q.time);
 		System.out.println(
-				"N:" + q.N + " Field:" + q.field_num + " Time:" + q.time + " Sat:" + NDD.satCount(q.queen, q.div));
+				"N:" + q.N + " Field:" + q.field_num + " Time:" + q.time + " Sat:" + BDDVector.satCount(q.queen));
 	}
 }

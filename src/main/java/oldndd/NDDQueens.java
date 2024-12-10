@@ -88,13 +88,13 @@ public class NDDQueens {
 		queen = FieldElement.NDDTrue;
 
 		for (int i = 0; i < N; i++) {
-			FieldElement predNDD = FieldElement.toNDD(orBatch[i]);
+			FieldElement predNDD = FieldElement.toBDDVector(orBatch[i]);
 			queen = FieldElement.And(queen, predNDD);
 		}
 
 		for (int i = 0; i < N; i++) {
 			for (int j = 0; j < N; j++) {
-				FieldElement predNDD = FieldElement.toNDD(impBatch[i][j]);
+				FieldElement predNDD = FieldElement.toBDDVector(impBatch[i][j]);
 				queen = FieldElement.And(queen, predNDD);
 			}
 		}
